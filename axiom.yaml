@@ -1,0 +1,165 @@
+name: christiangeorgelucas/sbom-tools
+version: 0.1.0
+language: typescript
+description: >-
+  Deterministic, SBOM-SEMANTIC parsing and inspection of Software Bill of
+  Materials documents — the two dominant formats, CycloneDX (JSON) and SPDX
+  (JSON, plus tag-value for format detection only). Distinct from generic
+  JSON tooling (dataformat-tools, json-schema-tools): this package understands
+  CycloneDX/SPDX structure and pulls out exactly what a security/supply-chain
+  agent needs — format + spec-version detection, a normalized parse
+  (components, dependency graph, vulnerabilities, metadata), the full
+  component inventory with PURLs and suppliers, per-component and
+  document-wide license auditing (including SPDX license-expression parsing
+  via spdx-expression-parse and a no-license compliance-gap finder),
+  ecosystem filtering by PURL type, count/summary breakdowns, and basic
+  structural validation. All CycloneDX/SPDX domain knowledge is this
+  package's own code (no generator library — cyclonedx-library was evaluated
+  and found to be generation/serialization-oriented, not a parser of
+  arbitrary existing SBOM JSON); spdx-expression-parse (MIT) is used only for
+  the one node that parses SPDX license-expression grammar. The SBOM is
+  always caller-supplied text — no network, no vulnerability-DB lookups, no
+  wall-clock, no randomness; every field is read verbatim from the document,
+  never generated. Input is bounded (3 MiB text, a pre-parse nesting-depth
+  guard, and a 5000-component cap) and a malformed or oversized document
+  returns a structured error instead of a crash.
+author: Christian George Lucas
+license: MIT
+tags:
+    - sbom
+    - cyclonedx
+    - spdx
+    - supply-chain
+    - sca
+    - license-audit
+    - purl
+    - vulnerability
+    - compliance
+    - security
+nodes:
+    - name: DetectFormat
+      input: SbomDocument
+      output: DetectFormatResult
+      description: >-
+        Detect the SBOM format (CycloneDX vs SPDX), encoding (JSON vs SPDX
+        tag-value), and declared spec version of a document, without fully
+        parsing it. `detected` is false and format/encoding are "unknown"
+        when the text matches neither format's shape.
+    - name: ParseCycloneDX
+      input: SbomDocument
+      output: NormalizedSbom
+      description: >-
+        Parse a CycloneDX JSON SBOM into a normalized structure: metadata
+        (tool, timestamp as declared, primary component), the full component
+        list (including nested sub-components, flattened), the dependency
+        graph, and any declared vulnerabilities (VEX). Rejects non-CycloneDX
+        or malformed input with a structured error rather than guessing.
+    - name: ParseSpdx
+      input: SbomDocument
+      output: NormalizedSbom
+      description: >-
+        Parse an SPDX JSON SBOM into the same normalized structure as
+        ParseCycloneDX: metadata (creator tool, created timestamp as
+        declared, document name/namespace, primary/described package),
+        packages as components (with PURL pulled from externalRefs), and the
+        dependency graph derived from DEPENDS_ON/DEPENDENCY_OF relationships.
+        SPDX 2.x carries no vulnerability data, so vulnerabilities is always
+        empty. SPDX tag-value input returns a structured error naming the
+        unsupported encoding (use DetectFormat first to check encoding).
+    - name: ListComponents
+      input: SbomDocument
+      output: ListComponentsResult
+      description: >-
+        List every component/package in the SBOM (name, version, type,
+        PURL, supplier, licenses), auto-detecting CycloneDX vs SPDX. Capped
+        at 5000 components; `truncated` is true if the document declared more.
+    - name: ExtractPurls
+      input: SbomDocument
+      output: ExtractPurlsResult
+      description: >-
+        Extract every component's Package URL (PURL) — the key
+        cross-ecosystem identifier for supply-chain correlation. Components
+        with no PURL declared come back with has_purl=false and an empty purl
+        rather than being silently dropped.
+    - name: ExtractLicenses
+      input: SbomDocument
+      output: ExtractLicensesResult
+      description: >-
+        Extract the resolved license set (identifiers/expressions) declared
+        for every component individually, plus whether any usable license
+        information was found for it at all.
+    - name: ListDistinctLicenses
+      input: SbomDocument
+      output: ListDistinctLicensesResult
+      description: >-
+        The license-audit node: every distinct license identifier/expression
+        used anywhere in the SBOM, deduplicated and sorted — the fastest way
+        to answer "what licenses does this dependency tree actually contain".
+    - name: ParseLicenseExpression
+      input: LicenseExpressionRequest
+      output: ParseLicenseExpressionResult
+      description: >-
+        Parse a standalone SPDX license expression (e.g. "(MIT OR
+        Apache-2.0) AND BSD-3-Clause") into its structured form via
+        spdx-expression-parse: every distinct license ID referenced, every
+        distinct exception ID (the "WITH <exception>" clause), and the full
+        parsed AST as JSON for exact fidelity. A syntactically invalid
+        expression returns a structured error.
+    - name: FindMissingLicenses
+      input: SbomDocument
+      output: FindMissingLicensesResult
+      description: >-
+        Flag every component with no usable license declared (absent,
+        NOASSERTION, or NONE) — the compliance-gap node. Returns the flagged
+        components plus the total component count for context.
+    - name: ExtractDependencyGraph
+      input: SbomDocument
+      output: ExtractDependencyGraphResult
+      description: >-
+        Extract the dependency graph as ref -> depends_on edges, from
+        CycloneDX's `dependencies` array or SPDX's DEPENDS_ON/DEPENDENCY_OF
+        relationships (the latter's direction is normalized to match
+        CycloneDX's "depends on" sense).
+    - name: ExtractVulnerabilities
+      input: SbomDocument
+      output: ExtractVulnerabilitiesResult
+      description: >-
+        Extract declared vulnerabilities from a CycloneDX SBOM's VEX data:
+        id, source, CVSS-style ratings, affected component refs, and
+        description. Always empty for SPDX input (SPDX 2.x has no
+        vulnerability field) — never fabricated.
+    - name: ExtractMetadata
+      input: SbomDocument
+      output: ExtractMetadataResult
+      description: >-
+        Extract document-level metadata verbatim: the tool that created it,
+        its creation timestamp exactly as declared in the document (never
+        generated by this node), the primary/described component, and the
+        document's own name/namespace/serial number.
+    - name: Summarize
+      input: SbomDocument
+      output: SummarizeResult
+      description: >-
+        Count and summarize an SBOM: total component count, breakdowns by
+        component type, by license, and by ecosystem (PURL type), plus
+        vulnerability and dependency-edge counts. The fast single-call
+        overview node.
+    - name: FilterByEcosystem
+      input: FilterByEcosystemRequest
+      output: ListComponentsResult
+      description: >-
+        Extract every component belonging to one ecosystem, matched against
+        the PURL type segment (e.g. "npm", "maven", "golang", "pypi",
+        "cargo") case-insensitively. A component with no PURL never matches
+        any ecosystem filter.
+    - name: ValidateStructure
+      input: SbomDocument
+      output: ValidateStructureResult
+      description: >-
+        Validate basic structural correctness for the detected format —
+        required top-level fields present (bomFormat/specVersion for
+        CycloneDX; spdxVersion/dataLicense/SPDXID for SPDX), components/
+        packages array well-formed, dependency/relationship refs resolve to
+        known component refs. Returns valid=false with a list of specific
+        issues rather than throwing; unrelated to and does not replace full
+        JSON-schema validation.
