@@ -2,7 +2,7 @@
 
 Deterministic, SBOM-SEMANTIC parsing and inspection of Software Bill of Materials
 documents — the two dominant formats, **CycloneDX** (JSON) and **SPDX** (JSON, plus
-tag-value for format detection only). Built for the [Axiom](https://axiom.co)
+tag-value for format detection only). Built for the [Axiom](https://axiomide.com)
 marketplace, handle `christiangeorgelucas`.
 
 Distinct from generic JSON tooling (`dataformat-tools`, `json-schema-tools`): this
