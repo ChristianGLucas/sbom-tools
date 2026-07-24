@@ -110,7 +110,8 @@ message NormalizedSbom {
   repeated Component components = 5;
   repeated DependencyEdge dependencies = 6;
   repeated Vulnerability vulnerabilities = 7;
-  // True when the component/dependency lists were truncated to stay within size bounds.
+  // Always false; reserved for output-schema stability (response size is
+  // bounded by the platform, not this node).
   bool truncated = 8;
 }
 
@@ -119,6 +120,7 @@ message ListComponentsResult {
   string error = 2;
   repeated Component components = 3;
   int32 count = 4;
+  // Always false; reserved for output-schema stability.
   bool truncated = 5;
 }
 

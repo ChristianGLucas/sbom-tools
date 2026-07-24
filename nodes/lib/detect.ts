@@ -1,6 +1,6 @@
 import { safeJsonParse, isPlainObject, maxJsonNestingDepth } from './jsonSafe';
 import { NFormat, failedFormat } from './types';
-import { MAX_NESTING_DEPTH, MAX_TEXT_BYTES, byteLength } from './limits';
+import { MAX_NESTING_DEPTH } from './limits';
 
 const SPDX_TAG_VALUE_RE = /^\s*SPDXVersion\s*:\s*(SPDX-\S+)/m;
 
@@ -11,13 +11,9 @@ export interface DetectOutcome extends NFormat {
 }
 
 // Detects format + encoding + declared spec version. Never throws: a document
-// that is oversized, too deeply nested, or matches neither format's shape comes
-// back with detected=false / format="unknown" rather than an exception.
+// that is too deeply nested, or matches neither format's shape, comes back
+// with detected=false / format="unknown" rather than an exception.
 export function detectFormat(text: string, formatHint: string): DetectOutcome {
-  if (byteLength(text) > MAX_TEXT_BYTES) {
-    return { ...failedFormat(`document exceeds ${MAX_TEXT_BYTES} byte limit`), ok: false };
-  }
-
   const hint = (formatHint || '').trim().toLowerCase();
   if (hint && !['cyclonedx-json', 'spdx-json', 'spdx-tag-value'].includes(hint)) {
     return { ...failedFormat(`unknown format_hint "${formatHint}"`), ok: false };

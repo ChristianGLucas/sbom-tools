@@ -73,12 +73,13 @@ describe('DetectFormat', () => {
     expect(result.getError()).toMatch(/nesting/);
   });
 
-  it('rejects oversized input with a structured error, not a crash', () => {
+  it('handles a large (well over the old byte cap) input without crashing', () => {
     const input = new SbomDocument();
     input.setText(oversizedText(3_000_001));
     const result = detectFormat(testContext, input);
-    expect(result.getOk()).toBe(false);
-    expect(result.getError()).toMatch(/byte limit/);
+    expect(result.getOk()).toBe(true);
+    expect(result.getFormat()).toBe('unknown');
+    expect(result.getDetected()).toBe(false);
   });
 
   it('is deterministic across repeated invocations', () => {

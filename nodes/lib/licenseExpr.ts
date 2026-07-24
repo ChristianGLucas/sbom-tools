@@ -1,5 +1,4 @@
 import parseExpression from 'spdx-expression-parse';
-import { MAX_EXPRESSION_LENGTH } from './limits';
 
 export interface LicenseExpressionOutcome {
   ok: boolean;
@@ -32,9 +31,6 @@ function collect(n: Node, licenseIds: Set<string>, exceptionIds: Set<string>): v
 export function parseLicenseExpression(expression: string): LicenseExpressionOutcome {
   if (!expression || !expression.trim()) {
     return { ok: false, error: 'expression is empty', licenseIds: [], exceptionIds: [], astJson: '' };
-  }
-  if (expression.length > MAX_EXPRESSION_LENGTH) {
-    return { ok: false, error: `expression exceeds ${MAX_EXPRESSION_LENGTH} character limit`, licenseIds: [], exceptionIds: [], astJson: '' };
   }
   try {
     const ast = parseExpression(expression);

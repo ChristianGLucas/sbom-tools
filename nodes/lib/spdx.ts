@@ -1,7 +1,6 @@
 import { isPlainObject } from './jsonSafe';
 import { detectFormat } from './detect';
 import { NComponent, NDependencyEdge, NMetadata, NormalizedSbomData, emptyMetadata, failedSbom } from './types';
-import { MAX_COMPONENTS } from './limits';
 
 function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -109,11 +108,9 @@ export function parseSpdxJson(text: string, formatHint: string): NormalizedSbomD
   if (!isPlainObject(doc)) return failedSbom('SPDX document did not parse as an object', detection);
 
   const packages = Array.isArray(doc.packages) ? doc.packages : [];
-  const truncated = packages.length > MAX_COMPONENTS;
   const components: NComponent[] = [];
   const componentsByRef = new Map<string, NComponent>();
   for (const raw of packages) {
-    if (components.length >= MAX_COMPONENTS) break;
     const c = toComponent(raw);
     if (c) {
       components.push(c);
@@ -133,6 +130,6 @@ export function parseSpdxJson(text: string, formatHint: string): NormalizedSbomD
     dependencies,
     // SPDX 2.x has no standard vulnerability field — always empty, never fabricated.
     vulnerabilities: [],
-    truncated,
+    truncated: false,
   };
 }

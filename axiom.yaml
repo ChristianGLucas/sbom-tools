@@ -1,5 +1,5 @@
 name: christiangeorgelucas/sbom-tools
-version: 0.1.0
+version: 0.1.1
 language: typescript
 description: >-
   Deterministic, SBOM-SEMANTIC parsing and inspection of Software Bill of

@@ -5,8 +5,7 @@ import { componentToMsg } from './lib/mappers';
 
 /**
  * List every component/package in the SBOM (name, version, type, PURL,
- * supplier, licenses), auto-detecting CycloneDX vs SPDX. Capped at 5000
- * components; `truncated` is true if the document declared more.
+ * supplier, licenses), auto-detecting CycloneDX vs SPDX.
  *
  * @param ax - Platform context: ax.log for logging, ax.secrets for secrets.
  */

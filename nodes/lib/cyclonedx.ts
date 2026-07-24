@@ -1,7 +1,13 @@
 import { isPlainObject } from './jsonSafe';
 import { detectFormat } from './detect';
 import { NComponent, NDependencyEdge, NVulnerability, NVulnerabilityRating, NMetadata, NormalizedSbomData, emptyMetadata, failedSbom } from './types';
-import { MAX_COMPONENTS } from './limits';
+
+// CycloneDX components can nest sub-components recursively (bill-of-materials
+// trees); flattenComponents below recurses to walk them. This bounds that
+// recursion so a pathologically deep document can't overflow the stack — a
+// genuine crash-prevention guard, not a size/DoS cap (element count and
+// output size are the platform's concern, not this node's).
+const MAX_COMPONENT_DEPTH = 50;
 
 function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -55,13 +61,11 @@ function toComponent(raw: unknown): NComponent | undefined {
   };
 }
 
-// CycloneDX components can nest sub-components recursively (bill-of-materials
-// trees). Flatten with a depth cap so a pathologically deep/wide document can't
-// blow the stack or the output size.
+// Flatten nested sub-components with a depth cap so a pathologically deep
+// document can't blow the stack.
 function flattenComponents(list: unknown, depth: number, out: NComponent[], seenRefs: Set<string>): void {
-  if (!Array.isArray(list) || depth > 50 || out.length >= MAX_COMPONENTS) return;
+  if (!Array.isArray(list) || depth > MAX_COMPONENT_DEPTH) return;
   for (const raw of list) {
-    if (out.length >= MAX_COMPONENTS) return;
     const c = toComponent(raw);
     if (c) {
       if (!(c.ref && seenRefs.has(c.ref))) {
@@ -102,7 +106,7 @@ function extractMetadata(doc: Record<string, unknown>, components: NComponent[])
     // Ensure the primary component itself is present in the component list.
     if (md.primaryComponentRef && !components.some((c) => c.ref === md.primaryComponentRef)) {
       const primary = toComponent(meta.component);
-      if (primary && components.length < MAX_COMPONENTS) components.push(primary);
+      if (primary) components.push(primary);
     }
   }
   return md;
@@ -168,7 +172,6 @@ export function parseCycloneDx(text: string, formatHint: string): NormalizedSbom
   const components: NComponent[] = [];
   const seenRefs = new Set<string>();
   flattenComponents(doc.components, 0, components, seenRefs);
-  const truncatedComponents = Array.isArray(doc.components) && components.length >= MAX_COMPONENTS;
 
   const metadata = extractMetadata(doc, components);
   const dependencies = extractDependencies(doc);
@@ -182,6 +185,6 @@ export function parseCycloneDx(text: string, formatHint: string): NormalizedSbom
     components,
     dependencies,
     vulnerabilities,
-    truncated: truncatedComponents,
+    truncated: false,
   };
 }
